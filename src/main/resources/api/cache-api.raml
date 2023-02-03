@@ -1,0 +1,37 @@
+#%RAML 1.0
+title: cache-api
+
+/save-data:
+  post:
+    body:
+      application/json:
+        example:
+          {
+            key: 0112233,
+            data: "sample data"
+          }
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              {
+                key: o112233,
+                status: "success"
+              }
+          
+/get-data:
+  get:
+    queryParameters:
+      key:
+        type: string
+        required: true
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              {
+                key: 0112233,
+                data: "sample data"
+              }
