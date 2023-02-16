@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
-http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
     <http:listener-config name="cache-api-httpListenerConfig">
         <http:listener-connection host="0.0.0.0" port="8081" />
     </http:listener-config>
     <apikit:config name="cache-api-config" api="cache-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
-    <os:object-store name="Object_store" doc:name="Object store" doc:id="48ea9025-a26f-4477-8375-d238cd6b8bb7" expirationInterval="2" expirationIntervalUnit="HOURS"/>
+    <os:object-store name="Object_store" doc:name="Object store" doc:id="48ea9025-a26f-4477-8375-d238cd6b8bb7" expirationInterval="2" expirationIntervalUnit="HOURS" />
+    <http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="f564ba2d-0e1e-4c9b-92aa-419791838d0a" >
+		<http:request-connection host="api.datadoghq.com" protocol="HTTPS"/>
+	</http:request-config>
 	<flow name="cache-api-main">
         <http:listener config-ref="cache-api-httpListenerConfig" path="/api/*">
             <http:response statusCode="#[vars.httpStatus default 200]">
@@ -126,9 +128,9 @@ output application/json
         </error-handler>
     </flow>
     <flow name="get:\get-data:cache-api-config">
-        <set-variable value="#[attributes.queryParams.key]" doc:name="Set Variable" doc:id="91bceace-104c-4402-a12c-f839564e46d4" variableName="key"/>
-		<os:retrieve doc:name="Retrieve" doc:id="61f9352d-a424-4576-be6d-4a234bfa7386" objectStore="Object_store" key="#[vars.key]"/>
-		<ee:transform>
+        <set-variable value="#[attributes.queryParams.key]" doc:name="Set Variable" doc:id="91bceace-104c-4402-a12c-f839564e46d4" variableName="key" />
+        <os:retrieve doc:name="Retrieve" doc:id="61f9352d-a424-4576-be6d-4a234bfa7386" objectStore="Object_store" key="#[vars.key]" />
+        <ee:transform>
             <ee:message>
                 <ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -142,8 +144,42 @@ output application/json
     </flow>
     <flow name="post:\save-data:application\json:cache-api-config">
         <logger level="INFO" doc:name="Logger" doc:id="f997714e-ced9-49e3-b56b-24f0214725f3" />
-		<os:store doc:name="Store" doc:id="7696c4fa-37e3-4964-af0a-13a4c2617ae6" key="#[payload.key]" objectStore="Object_store">
-			<os:value ><![CDATA[#[payload.data]]]></os:value>
-		</os:store>
+        <os:store doc:name="Store" doc:id="7696c4fa-37e3-4964-af0a-13a4c2617ae6" key="#[payload.key]" objectStore="Object_store">
+            <os:value><![CDATA[#[payload.data]]]></os:value>
+        </os:store>
+    </flow>
+    <flow name="get:\get-logs:cache-api-config">
+        <ee:transform doc:name="paylaod format">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "filter": {
+    "query": attributes.queryParams.query,
+    "indexes": [
+      "main"
+    ],
+    
+    "from": attributes.queryParams.date,
+    "to": "2023-05-02T00:00:00+00:00"
+  },
+  "sort": "timestamp",
+  "page": {
+    "limit": 1
+  }
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<http:request method="POST" doc:name="Request" doc:id="12376f1c-0491-4234-aeff-0f3506b55b08" config-ref="HTTP_Request_configuration" path="/api/v2/logs/events/search">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Accept" : "application/json",
+	"DD-APPLICATION-KEY" : "5bc5b114b606fa193876657ada28fc1bf21398d4",
+	"Content-Type" : "application/json",
+	"DD-API-KEY" : "105a747cc1ecf45502223541252c1117"
+}]]]></http:headers>
+		</http:request>
     </flow>
 </mule>

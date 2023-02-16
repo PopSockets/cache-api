@@ -35,3 +35,24 @@ title: cache-api
                 key: 0112233,
                 data: "sample data"
               }
+
+/get-logs:
+  get:
+    queryParameters:
+      query:
+        type: string
+        required: true
+      date:
+        type: string
+        required: true
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              {
+                "data":[]
+              }
+
+    
+                  
